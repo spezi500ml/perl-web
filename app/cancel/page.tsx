@@ -1,70 +1,71 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
-export default function CancelPage() {
+function CancelInner() {
+  const sp = useSearchParams();
   const router = useRouter();
 
-  const [site, setSite] = useState<string>("");
-  const [plate, setPlate] = useState<string | null>(null);
-  const [isE, setIsE] = useState(false);
-  const [isH, setIsH] = useState(false);
-
-  useEffect(() => {
-    // URL params nur im Browser lesen (fix für Vercel Build)
-    const sp = new URLSearchParams(window.location.search);
-    setSite(sp.get("site") || "Muster-REWE");
-
-    // LocalStorage nur im Browser
-    const base = localStorage.getItem("perl_plate");
-    setPlate(base);
-    setIsE(localStorage.getItem("perl_plate_e") === "1");
-    setIsH(localStorage.getItem("perl_plate_h") === "1");
-  }, []);
-
-  const plateLabel = useMemo(() => {
-    if (!plate) return "—";
-    const suffix = isE ? " E" : isH ? " H" : "";
-    return `${plate}${suffix}`;
-  }, [plate, isE, isH]);
-
-  function goBack() {
-    // zurück zur Verlängerung
-    router.push(`/extend?site=${encodeURIComponent(site || "Muster-REWE")}`);
-  }
-
-  function goHome() {
-    // zurück zur Startseite
-    router.push(`/?site=${encodeURIComponent(site || "Muster-REWE")}`);
-  }
+  const site = useMemo(() => sp.get("site") || "Muster-REWE", [sp]);
 
   return (
-    <main style={wrap}>
-      <div style={card}>
-        <h1 style={h1}>Zahlung abgebrochen</h1>
-        <p style={p}>
-          Kein Stress – es wurde nichts gebucht.
-          <br />
-          Sie können jederzeit erneut verlängern.
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: 32,
+        background: "#0b0b0b",
+        color: "#fff",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      }}
+    >
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 34, margin: "0 0 10px" }}>Zahlung abgebrochen</h1>
+        <p style={{ opacity: 0.85, marginTop: 0 }}>
+          Kein Problem – es wurde nichts berechnet. Sie können jederzeit erneut verlängern.
         </p>
 
-        <div style={meta}>
-          <div>
-            <div style={metaLabel}>Standort</div>
-            <div style={metaValue}>{site || "Muster-REWE"}</div>
-          </div>
-          <div>
-            <div style={metaLabel}>Kennzeichen</div>
-            <div style={metaValue}>{plateLabel}</div>
-          </div>
+        <div
+          style={{
+            marginTop: 18,
+            padding: 18,
+            borderRadius: 14,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.10)",
+          }}
+        >
+          <div style={{ fontSize: 14, opacity: 0.8 }}>Standort</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{site}</div>
         </div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
-          <button onClick={goBack} style={btnPrimary}>
+          <button
+            onClick={() => router.push(`/extend?site=${encodeURIComponent(site)}`)}
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              border: "none",
+              fontWeight: 800,
+              cursor: "pointer",
+              background: "#2d2d2d",
+              color: "#fff",
+            }}
+          >
             Zurück zur Verlängerung
           </button>
-          <button onClick={goHome} style={btnSecondary}>
+
+          <button
+            onClick={() => router.push(`/?site=${encodeURIComponent(site)}`)}
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.15)",
+              fontWeight: 800,
+              cursor: "pointer",
+              background: "transparent",
+              color: "#fff",
+            }}
+          >
             Zur Startseite
           </button>
         </div>
@@ -73,71 +74,26 @@ export default function CancelPage() {
   );
 }
 
-const wrap: React.CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  padding: 24,
-  background: "#0b0b0b",
-  color: "#fff",
-};
-
-const card: React.CSSProperties = {
-  width: "100%",
-  maxWidth: 780,
-  borderRadius: 18,
-  padding: 22,
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(255,255,255,0.12)",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-};
-
-const h1: React.CSSProperties = {
-  margin: 0,
-  fontSize: 32,
-  fontWeight: 900,
-  letterSpacing: -0.4,
-};
-
-const p: React.CSSProperties = {
-  marginTop: 10,
-  marginBottom: 0,
-  opacity: 0.9,
-  lineHeight: 1.4,
-};
-
-const meta: React.CSSProperties = {
-  marginTop: 16,
-  display: "grid",
-  gap: 12,
-};
-
-const metaLabel: React.CSSProperties = {
-  fontSize: 12,
-  opacity: 0.7,
-};
-
-const metaValue: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 800,
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: 14,
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "#2BBF87",
-  color: "#0b0b0b",
-  fontWeight: 900,
-  cursor: "pointer",
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: 14,
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.10)",
-  color: "#fff",
-  fontWeight: 900,
-  cursor: "pointer",
-};
+export default function CancelPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          style={{
+            minHeight: "100vh",
+            padding: 32,
+            background: "#0b0b0b",
+            color: "#fff",
+            fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+          }}
+        >
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+            <h1 style={{ fontSize: 34, margin: 0 }}>Lade…</h1>
+          </div>
+        </main>
+      }
+    >
+      <CancelInner />
+    </Suspense>
+  );
+}
