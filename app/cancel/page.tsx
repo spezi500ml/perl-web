@@ -1,20 +1,25 @@
 "use client";
-export const dynamic = "force-dynamic";
-import { Suspense, useMemo } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 
-function CancelInner() {
-  const sp = useSearchParams();
+export const dynamic = "force-dynamic";
+
+import { useRouter } from "next/navigation";
+
+const BG = "#0b0b0b";
+const CARD = "rgba(255,255,255,0.06)";
+const BORDER = "rgba(255,255,255,0.10)";
+
+export default function CancelPage() {
   const router = useRouter();
 
-  const site = useMemo(() => sp.get("site") || "Muster-REWE", [sp]);
+  // Kein useSearchParams -> keine Vercel/Suspense-Probleme
+  const site = "Muster-REWE";
 
   return (
     <main
       style={{
         minHeight: "100vh",
         padding: 32,
-        background: "#0b0b0b",
+        background: BG,
         color: "#fff",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
       }}
@@ -30,12 +35,12 @@ function CancelInner() {
             marginTop: 18,
             padding: 18,
             borderRadius: 14,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.10)",
+            background: CARD,
+            border: `1px solid ${BORDER}`,
           }}
         >
           <div style={{ fontSize: 14, opacity: 0.8 }}>Standort</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{site}</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{site}</div>
         </div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
@@ -55,15 +60,16 @@ function CancelInner() {
           </button>
 
           <button
-            onClick={() => router.push(`/?site=${encodeURIComponent(site)}`)}
+            onClick={() => router.push(`/`)}
             style={{
               padding: 14,
               borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
+              border: "none",
               fontWeight: 800,
               cursor: "pointer",
-              background: "transparent",
+              background: "#1f1f1f",
               color: "#fff",
+              opacity: 0.9,
             }}
           >
             Zur Startseite
@@ -71,29 +77,5 @@ function CancelInner() {
         </div>
       </div>
     </main>
-  );
-}
-
-export default function CancelPage() {
-  return (
-    <Suspense
-      fallback={
-        <main
-          style={{
-            minHeight: "100vh",
-            padding: 32,
-            background: "#0b0b0b",
-            color: "#fff",
-            fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-          }}
-        >
-          <div style={{ maxWidth: 760, margin: "0 auto" }}>
-            <h1 style={{ fontSize: 34, margin: 0 }}>Lade…</h1>
-          </div>
-        </main>
-      }
-    >
-      <CancelInner />
-    </Suspense>
   );
 }
