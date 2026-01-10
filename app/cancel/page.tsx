@@ -1,80 +1,51 @@
-"use client";
-
 export const dynamic = "force-dynamic";
 
-import { useRouter } from "next/navigation";
+type Props = {
+  searchParams?: {
+    site?: string;
+  };
+};
 
-const BG = "#0b0b0b";
-const CARD = "rgba(255,255,255,0.06)";
-const BORDER = "rgba(255,255,255,0.10)";
-
-export default function CancelPage() {
-  const router = useRouter();
-
-  // Kein useSearchParams -> keine Vercel/Suspense-Probleme
-  const site = "Muster-REWE";
+export default function CancelPage({ searchParams }: Props) {
+  const site = searchParams?.site ?? "Muster-REWE";
 
   return (
     <main
       style={{
         minHeight: "100vh",
         padding: 32,
-        background: BG,
+        background: "#0b0b0b",
         color: "#fff",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
       }}
     >
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 34, margin: "0 0 10px" }}>Zahlung abgebrochen</h1>
-        <p style={{ opacity: 0.85, marginTop: 0 }}>
-          Kein Problem – es wurde nichts berechnet. Sie können jederzeit erneut verlängern.
-        </p>
+      <h1 style={{ fontSize: 34, marginBottom: 12 }}>
+        Zahlung abgebrochen
+      </h1>
 
-        <div
+      <p style={{ opacity: 0.85, marginBottom: 24 }}>
+        Keine Sorge – es wurde <strong>nichts berechnet</strong>.
+      </p>
+
+      <p style={{ opacity: 0.85 }}>
+        Standort: <strong>{site}</strong>
+      </p>
+
+      <div style={{ marginTop: 24 }}>
+        <a
+          href={`/?site=${encodeURIComponent(site)}`}
           style={{
-            marginTop: 18,
-            padding: 18,
-            borderRadius: 14,
-            background: CARD,
-            border: `1px solid ${BORDER}`,
+            padding: 14,
+            borderRadius: 12,
+            background: "#2d2dff",
+            color: "#fff",
+            fontWeight: 700,
+            textDecoration: "none",
+            display: "inline-block",
           }}
         >
-          <div style={{ fontSize: 14, opacity: 0.8 }}>Standort</div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{site}</div>
-        </div>
-
-        <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
-          <button
-            onClick={() => router.push(`/extend?site=${encodeURIComponent(site)}`)}
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "none",
-              fontWeight: 800,
-              cursor: "pointer",
-              background: "#2d2d2d",
-              color: "#fff",
-            }}
-          >
-            Zurück zur Verlängerung
-          </button>
-
-          <button
-            onClick={() => router.push(`/`)}
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "none",
-              fontWeight: 800,
-              cursor: "pointer",
-              background: "#1f1f1f",
-              color: "#fff",
-              opacity: 0.9,
-            }}
-          >
-            Zur Startseite
-          </button>
-        </div>
+          Zurück zur Verlängerung
+        </a>
       </div>
     </main>
   );
