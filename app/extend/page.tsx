@@ -1,90 +1,64 @@
-'use client';
+export const dynamic = "force-dynamic";
 
-export const dynamic = 'force-dynamic';
+type Props = {
+  searchParams?: {
+    site?: string;
+  };
+};
 
-import { Suspense, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-
-function ExtendInner() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const site = useMemo(
-    () => searchParams.get('site') || 'Muster-REWE',
-    [searchParams]
-  );
+export default function ExtendPage({ searchParams }: Props) {
+  const site = searchParams?.site ?? "Muster-REWE";
 
   return (
     <main
       style={{
-        minHeight: '100vh',
+        minHeight: "100vh",
         padding: 32,
-        background: '#0b0b0b',
-        color: '#fff',
-        fontFamily:
-          'system-ui, -apple-system, Segoe UI, Roboto, Arial',
+        background: "#0b0b0b",
+        color: "#fff",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
       }}
     >
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 34, marginBottom: 12 }}>
-          Parkzeit verlängern
-        </h1>
+      <h1 style={{ fontSize: 34, marginBottom: 12 }}>
+        Parkzeit verlängern
+      </h1>
 
-        <p style={{ opacity: 0.85, marginBottom: 24 }}>
-          Standort:
-        </p>
+      <p style={{ opacity: 0.85, marginBottom: 24 }}>
+        Standort: <strong>{site}</strong>
+      </p>
 
-        <div
-          style={{
-            padding: 16,
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            marginBottom: 24,
-          }}
+      <div style={{ display: "grid", gap: 12, maxWidth: 360 }}>
+        <a
+          href={process.env.NEXT_PUBLIC_STRIPE_LINK_30}
+          style={buttonStyle}
         >
-          <strong>{site}</strong>
-        </div>
+          +30 Minuten
+        </a>
 
-        <div style={{ display: 'grid', gap: 12 }}>
-          <button
-            onClick={() => router.push(`/success?site=${encodeURIComponent(site)}`)}
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              border: 'none',
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: '#22d3ee',
-              color: '#000',
-            }}
-          >
-            Verlängerung abschließen
-          </button>
+        <a
+          href={process.env.NEXT_PUBLIC_STRIPE_LINK_60}
+          style={buttonStyle}
+        >
+          +60 Minuten
+        </a>
 
-          <button
-            onClick={() => router.push(`/cancel?site=${encodeURIComponent(site)}`)}
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.3)',
-              background: 'transparent',
-              color: '#fff',
-              cursor: 'pointer',
-            }}
-          >
-            Abbrechen
-          </button>
-        </div>
+        <a
+          href={process.env.NEXT_PUBLIC_STRIPE_LINK_180}
+          style={buttonStyle}
+        >
+          +180 Minuten
+        </a>
       </div>
     </main>
   );
 }
 
-export default function ExtendPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 32 }}>Lade…</div>}>
-      <ExtendInner />
-    </Suspense>
-  );
-}
+const buttonStyle: React.CSSProperties = {
+  padding: 16,
+  borderRadius: 12,
+  background: "#2d2dff",
+  color: "#fff",
+  fontWeight: 700,
+  textDecoration: "none",
+  textAlign: "center",
+};
