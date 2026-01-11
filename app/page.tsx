@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import PlateInput from "@/components/PlateInput";
 import {
-  addMinutesToEnd,
   buildPlate,
   clearPlate,
   ensureSession,
@@ -34,7 +34,6 @@ export default function HomePage() {
   const [endMs, setEndMsState] = useState(0);
   const [now, setNow] = useState(Date.now());
 
-  // Größere Schrift global über inline “Base”
   const base = useMemo(
     () => ({
       minHeight: "100vh",
@@ -49,7 +48,6 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    // Site aus URL? Für Demo lassen wir’s bei local storage / default.
     const s = getSite("Muster-REWE");
     setSiteState(s);
     ensureSession(s);
@@ -69,7 +67,6 @@ export default function HomePage() {
     setPlate(plate);
     setPlateSaved(plate);
 
-    // wenn noch keine Session-Ende gesetzt ist, initialisieren wir neu
     setSite(site);
     ensureSession(site);
     setEndMsState(getEndMs());
@@ -78,13 +75,34 @@ export default function HomePage() {
   function onChangePlate() {
     clearPlate();
     setPlateSaved("");
+    // Optional: Wenn du willst, dass beim Ändern wieder “keins” default ist:
+    setIsE(false);
+    setIsH(false);
   }
 
   function goExtend() {
     router.push(`/extend`);
   }
 
-  // UI helpers
+  // Mutual-Exclusion: E und H nie gleichzeitig, aber beides darf aus sein
+  function toggleE(next: boolean) {
+    if (next) {
+      setIsE(true);
+      setIsH(false);
+    } else {
+      setIsE(false);
+    }
+  }
+
+  function toggleH(next: boolean) {
+    if (next) {
+      setIsH(true);
+      setIsE(false);
+    } else {
+      setIsH(false);
+    }
+  }
+
   const cardStyle: React.CSSProperties = {
     maxWidth: 560,
     margin: "0 auto",
@@ -118,26 +136,15 @@ export default function HomePage() {
     cursor: "pointer",
   };
 
-  const inputStyle: React.CSSProperties = {
-    height: 56,
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(0,0,0,0.35)",
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: 800,
-    padding: "0 14px",
-    outline: "none",
-    textTransform: "uppercase", // macht Anzeige groß
-  };
-
   return (
     <main style={base}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: 2, color: "#18c48f" }}>
           PERL
         </div>
-        <div style={{ fontSize: 40, fontWeight: 900, marginTop: 6 }}>Parkplätze für Kunden</div>
+        <div style={{ fontSize: 40, fontWeight: 900, marginTop: 6 }}>
+          Parkplätze für Kunden
+        </div>
         <p style={{ opacity: 0.85, marginTop: 10, fontSize: 18 }}>
           Bitte erfassen Sie Ihr Kennzeichen einmalig. Danach sehen Sie Ihre verbleibende Parkzeit und können bei Bedarf verlängern.
         </p>
@@ -147,67 +154,20 @@ export default function HomePage() {
 
       {!plateSaved ? (
         <div style={cardStyle}>
-          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>
-            Kennzeichen einmalig erfassen
-          </div>
+          <PlateInput
+            prefix={prefix}
+            number={number}
+            isE={isE}
+            isH={isH}
+            onPrefixChange={(v) => setPrefix(normalizePrefix(v))}
+            onNumberChange={(v) => setNumber(normalizeNumber(v))}
+            onToggleE={toggleE}
+            onToggleH={toggleH}
+          />
 
-          {/* Eingabe: erstes Feld schmal (max 3), zweites breit */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <input
-              value={prefix}
-              onChange={(e) => setPrefix(normalizePrefix(e.target.value))}
-              placeholder="MUC"
-              maxLength={3}
-              inputMode="text"
-              autoCapitalize="characters"
-              style={{ ...inputStyle, width: 110 }} // SCHMAL
-            />
-            <div style={{ fontSize: 22, fontWeight: 900, opacity: 0.9 }}>-</div>
-            <input
-              value={number}
-              onChange={(e) => setNumber(normalizeNumber(e.target.value))}
-              placeholder="123"
-              maxLength={4}
-              inputMode="numeric"
-              style={{ ...inputStyle, flex: 1 }} // BREIT
-            />
-          </div>
-
-          <div style={{ display: "flex", gap: 18, marginTop: 14 }}>
-            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 18 }}>
-              <input
-                type="checkbox"
-                checked={isE}
-                onChange={(e) => {
-                  setIsE(e.target.checked);
-                  if (e.target.checked) setIsH(false);
-                }}
-              />
-              E-Kennzeichen
-            </label>
-
-            <label style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 18 }}>
-              <input
-                type="checkbox"
-                checked={isH}
-                onChange={(e) => {
-                  setIsH(e.target.checked);
-                  if (e.target.checked) setIsE(false);
-                }}
-              />
-              H-Kennzeichen
-            </label>
-          </div>
-
-          <div style={{ height: 14 }} />
-
-          <button onClick={onSavePlate} style={btnPrimary}>
+          <button onClick={onSavePlate} style={{ ...btnPrimary, marginTop: 12 }}>
             Kennzeichen speichern
           </button>
-
-          <p style={{ marginTop: 10, opacity: 0.7 }}>
-            Ihr Kennzeichen wird aktuell nur auf diesem Gerät gespeichert.
-          </p>
 
           <p style={{ marginTop: 10, opacity: 0.85 }}>
             Standort: <strong>{site}</strong>
@@ -219,7 +179,14 @@ export default function HomePage() {
             Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger bleiben möchten, können Sie vor Ablauf verlängern.
           </p>
 
-          <div style={{ marginTop: 12, padding: 16, borderRadius: 16, background: "rgba(255,255,255,0.05)" }}>
+          <div
+            style={{
+              marginTop: 12,
+              padding: 16,
+              borderRadius: 16,
+              background: "rgba(255,255,255,0.05)",
+            }}
+          >
             <div style={{ opacity: 0.8, fontSize: 16 }}>Verbleibende Zeit</div>
             <div style={{ fontSize: 58, fontWeight: 900, color: "#18c48f", marginTop: 6 }}>
               {formatCountdown(msLeft)}
