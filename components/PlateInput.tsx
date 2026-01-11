@@ -4,212 +4,182 @@ import React from "react";
 
 type Props = {
   prefix: string;
-  number: string;
+  setPrefix: (v: string) => void;
+
+  rest: string;
+  setRest: (v: string) => void;
+
   isE: boolean;
+  setIsE: (v: boolean) => void;
+
   isH: boolean;
-  onPrefixChange: (v: string) => void;
-  onNumberChange: (v: string) => void;
-  onToggleE: (next: boolean) => void;
-  onToggleH: (next: boolean) => void;
+  setIsH: (v: boolean) => void;
 };
 
 export default function PlateInput({
   prefix,
-  number,
+  setPrefix,
+  rest,
+  setRest,
   isE,
+  setIsE,
   isH,
-  onPrefixChange,
-  onNumberChange,
-  onToggleE,
-  onToggleH,
+  setIsH,
 }: Props) {
-  const wrap: React.CSSProperties = {
+  const outer: React.CSSProperties = {
     width: "100%",
-    padding: 16,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.10)",
-  };
-
-  const plateRow: React.CSSProperties = {
-    display: "flex",
-    alignItems: "stretch",
-    gap: 12,
-    justifyContent: "center",
-  };
-
-  const plateOuter: React.CSSProperties = {
-    display: "flex",
-    alignItems: "stretch",
-    borderRadius: 14,
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(0,0,0,0.35)",
-    boxShadow: "0 0 0 1px rgba(0,0,0,0.2) inset",
+    padding: 10,
   };
 
-  const euStripe: React.CSSProperties = {
-    width: 44,
+  const row: React.CSSProperties = {
+    display: "flex",
+    alignItems: "stretch",
+    gap: 10,
+  };
+
+  const euBadge: React.CSSProperties = {
+    width: 46,
+    borderRadius: 12,
+    background: "#2f49ff",
+    border: "1px solid rgba(255,255,255,0.25)",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
     alignItems: "center",
-    background: "#2340ff",
+    justifyContent: "center",
     color: "#fff",
     fontWeight: 900,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     userSelect: "none",
   };
 
-  const stars: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 4px)",
-    gap: 2,
+  const euStars: React.CSSProperties = {
+    fontSize: 10,
+    lineHeight: "10px",
     opacity: 0.9,
-    marginBottom: 6,
+    marginBottom: 4,
   };
 
-  const starDot: React.CSSProperties = {
-    width: 4,
-    height: 4,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.9)",
+  const plateShell: React.CSSProperties = {
+    flex: 1,
+    height: 56,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    display: "flex",
+    alignItems: "center",
+    padding: "0 12px",
+    gap: 10,
   };
 
-  const fieldBase: React.CSSProperties = {
-    height: 58,
-    border: "none",
-    outline: "none",
-    background: "transparent",
+  const inputBase: React.CSSProperties = {
+    height: 44,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(0,0,0,0.25)",
     color: "#fff",
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 900,
-    padding: "0 14px",
+    padding: "0 12px",
+    outline: "none",
     textTransform: "uppercase",
   };
 
-  const prefixStyle: React.CSSProperties = {
-    ...fieldBase,
-    width: 96,
-    textAlign: "center",
-    borderRight: "1px solid rgba(255,255,255,0.12)",
+  const dot: React.CSSProperties = {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.25)",
   };
 
-  const numberWrap: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 160,
-    paddingRight: 8,
-  };
-
-  const numberStyle: React.CSSProperties = {
-    ...fieldBase,
-    flex: 1,
-    minWidth: 0,
-    textAlign: "left",
-  };
-
-  const rightCap: React.CSSProperties = {
-    width: 18,
-    marginLeft: 8,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-  };
-
-  // Checkbox style (größer + klickbar)
-  const cbRow: React.CSSProperties = {
+  const suffixWrap: React.CSSProperties = {
     display: "flex",
     gap: 18,
-    marginTop: 14,
-    justifyContent: "center",
-    flexWrap: "wrap",
-  };
-
-  const cbLabel: React.CSSProperties = {
-    display: "flex",
-    gap: 10,
     alignItems: "center",
+    marginTop: 12,
     fontSize: 18,
     fontWeight: 800,
-    userSelect: "none",
-    cursor: "pointer",
+    opacity: 0.95,
   };
 
-  const cb: React.CSSProperties = {
-    width: 20,
-    height: 20,
-    accentColor: "#18c48f",
-  };
+  function normalizePrefix(v: string) {
+    return v.toUpperCase().replace(/[^A-ZÄÖÜ]/g, "").slice(0, 3);
+  }
+
+  // Rest = Buchstaben + Zahlen (für z.B. UC19)
+  function normalizeRest(v: string) {
+    return v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  }
 
   return (
-    <div style={wrap}>
-      <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 12 }}>
-        Kennzeichen einmalig erfassen
-      </div>
+    <div style={outer}>
+      <div style={row}>
+        <div style={euBadge}>
+          <div style={euStars}>••••</div>
+          <div style={{ fontSize: 16 }}>D</div>
+        </div>
 
-      <div style={plateRow}>
-        <div style={plateOuter}>
-          <div style={euStripe}>
-            <div style={stars} aria-hidden="true">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <span key={i} style={starDot} />
-              ))}
-            </div>
-            <div style={{ fontSize: 16, lineHeight: 1 }}>D</div>
-          </div>
-
+        <div style={plateShell}>
+          {/* Feld 1: max 3 Buchstaben */}
           <input
             value={prefix}
-            onChange={(e) => onPrefixChange(e.target.value.toUpperCase())}
+            onChange={(e) => setPrefix(normalizePrefix(e.target.value))}
             placeholder="MUC"
             maxLength={3}
             inputMode="text"
             autoCapitalize="characters"
-            style={prefixStyle}
+            style={{ ...inputBase, width: 88, textAlign: "center" }}
           />
 
-          <div style={numberWrap}>
-            <input
-              value={number}
-              onChange={(e) => onNumberChange(e.target.value)}
-              placeholder="123"
-              maxLength={4}
-              inputMode="numeric"
-              style={numberStyle}
-            />
-            <div style={rightCap} aria-hidden="true" />
+          {/* „Nieten“-Punkte */}
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={dot} />
+            <div style={dot} />
           </div>
+
+          {/* Feld 2: Buchstaben + Zahlen */}
+          <input
+            value={rest}
+            onChange={(e) => setRest(normalizeRest(e.target.value))}
+            placeholder="UC19"
+            maxLength={6}
+            inputMode="text"
+            autoCapitalize="characters"
+            style={{ ...inputBase, flex: 1, minWidth: 120 }}
+          />
         </div>
       </div>
 
-      {/* Checkboxen: nur eins gleichzeitig, aber auch keins möglich */}
-      <div style={cbRow}>
-        <label style={cbLabel}>
+      {/* E/H: optional & exklusiv (kann auch keins gewählt werden) */}
+      <div style={suffixWrap}>
+        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
             type="checkbox"
             checked={isE}
-            onChange={(e) => onToggleE(e.target.checked)}
-            style={cb}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setIsE(next);
+              if (next) setIsH(false);
+            }}
           />
           E-Kennzeichen
         </label>
 
-        <label style={cbLabel}>
+        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
             type="checkbox"
             checked={isH}
-            onChange={(e) => onToggleH(e.target.checked)}
-            style={cb}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setIsH(next);
+              if (next) setIsE(false);
+            }}
           />
           H-Kennzeichen
         </label>
       </div>
-
-      <p style={{ marginTop: 10, opacity: 0.7, fontSize: 16 }}>
-        Ihr Kennzeichen wird aktuell nur auf diesem Gerät gespeichert.
-      </p>
     </div>
   );
 }

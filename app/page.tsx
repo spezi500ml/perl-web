@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PlateInput from "@/components/PlateInput";
 import {
@@ -12,8 +12,6 @@ import {
   getEndMs,
   getPlate,
   getSite,
-  normalizeNumber,
-  normalizePrefix,
   setPlate,
   setSite,
 } from "@/lib/parking";
@@ -25,8 +23,11 @@ export default function HomePage() {
 
   const [site, setSiteState] = useState("Muster-REWE");
 
-  const [prefix, setPrefix] = useState("MUC");
-  const [number, setNumber] = useState("321");
+  // EU-Plate Input
+  const [prefix, setPrefix] = useState("M");
+  const [rest, setRest] = useState("123");
+
+  // Optional & exklusiv
   const [isE, setIsE] = useState(false);
   const [isH, setIsH] = useState(false);
 
@@ -34,7 +35,7 @@ export default function HomePage() {
   const [endMs, setEndMsState] = useState(0);
   const [now, setNow] = useState(Date.now());
 
-  const base = useMemo(
+  const base = useMemo<React.CSSProperties>(
     () => ({
       minHeight: "100vh",
       padding: 22,
@@ -50,6 +51,7 @@ export default function HomePage() {
   useEffect(() => {
     const s = getSite("Muster-REWE");
     setSiteState(s);
+
     ensureSession(s);
     setEndMsState(getEndMs());
 
@@ -63,7 +65,7 @@ export default function HomePage() {
   const msLeft = Math.max(0, endMs - now);
 
   function onSavePlate() {
-    const plate = buildPlate(prefix, number, isE, isH);
+    const plate = buildPlate(prefix, rest, isE, isH);
     setPlate(plate);
     setPlateSaved(plate);
 
@@ -75,32 +77,30 @@ export default function HomePage() {
   function onChangePlate() {
     clearPlate();
     setPlateSaved("");
-    // Optional: Wenn du willst, dass beim Ändern wieder “keins” default ist:
-    setIsE(false);
-    setIsH(false);
   }
 
   function goExtend() {
     router.push(`/extend`);
   }
 
-  // Mutual-Exclusion: E und H nie gleichzeitig, aber beides darf aus sein
-  function toggleE(next: boolean) {
-    if (next) {
-      setIsE(true);
-      setIsH(false);
-    } else {
-      setIsE(false);
-    }
-  }
+  function addReminder10MinBefore() {
+    const remindAt = new Date(endMs - 10 * 60 * 1000);
+    const dt = remindAt
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .split(".")[0] + "Z";
 
-  function toggleH(next: boolean) {
-    if (next) {
-      setIsH(true);
-      setIsE(false);
-    } else {
-      setIsH(false);
-    }
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${dt}
+SUMMARY:Parkzeit läuft bald ab
+DESCRIPTION:Ihre Parkzeit bei ${site} endet bald.
+END:VEVENT
+END:VCALENDAR`;
+
+    const url = "data:text/calendar;charset=utf8," + encodeURIComponent(ics);
+    window.location.href = url;
   }
 
   const cardStyle: React.CSSProperties = {
@@ -136,17 +136,38 @@ export default function HomePage() {
     cursor: "pointer",
   };
 
+  const btnGhost: React.CSSProperties = {
+    width: "100%",
+    height: 52,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#7ec7ff",
+    fontSize: 18,
+    fontWeight: 800,
+    cursor: "pointer",
+  };
+
   return (
     <main style={base}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
-        <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: 2, color: "#18c48f" }}>
+        <div
+          style={{
+            fontSize: 56,
+            fontWeight: 900,
+            letterSpacing: 2,
+            color: "#18c48f",
+          }}
+        >
           PERL
         </div>
         <div style={{ fontSize: 40, fontWeight: 900, marginTop: 6 }}>
           Parkplätze für Kunden
         </div>
+
         <p style={{ opacity: 0.85, marginTop: 10, fontSize: 18 }}>
-          Bitte erfassen Sie Ihr Kennzeichen einmalig. Danach sehen Sie Ihre verbleibende Parkzeit und können bei Bedarf verlängern.
+          Kennzeichen einmalig erfassen, um verbleibende Restparkzeit zu sehen und
+          ggf. zu verlängern.
         </p>
       </div>
 
@@ -154,20 +175,30 @@ export default function HomePage() {
 
       {!plateSaved ? (
         <div style={cardStyle}>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>
+            Kennzeichen einmalig erfassen
+          </div>
+
           <PlateInput
             prefix={prefix}
-            number={number}
+            setPrefix={setPrefix}
+            rest={rest}
+            setRest={setRest}
             isE={isE}
+            setIsE={setIsE}
             isH={isH}
-            onPrefixChange={(v) => setPrefix(normalizePrefix(v))}
-            onNumberChange={(v) => setNumber(normalizeNumber(v))}
-            onToggleE={toggleE}
-            onToggleH={toggleH}
+            setIsH={setIsH}
           />
 
-          <button onClick={onSavePlate} style={{ ...btnPrimary, marginTop: 12 }}>
+          <div style={{ height: 14 }} />
+
+          <button onClick={onSavePlate} style={btnPrimary}>
             Kennzeichen speichern
           </button>
+
+          <p style={{ marginTop: 10, opacity: 0.7 }}>
+            Ihr Kennzeichen wird aktuell nur auf diesem Gerät gespeichert.
+          </p>
 
           <p style={{ marginTop: 10, opacity: 0.85 }}>
             Standort: <strong>{site}</strong>
@@ -176,7 +207,8 @@ export default function HomePage() {
       ) : (
         <div style={cardStyle}>
           <p style={{ opacity: 0.85, fontSize: 18 }}>
-            Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger bleiben möchten, können Sie vor Ablauf verlängern.
+            Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger
+            bleiben möchten, können Sie vor Ablauf verlängern.
           </p>
 
           <div
@@ -188,7 +220,15 @@ export default function HomePage() {
             }}
           >
             <div style={{ opacity: 0.8, fontSize: 16 }}>Verbleibende Zeit</div>
-            <div style={{ fontSize: 58, fontWeight: 900, color: "#18c48f", marginTop: 6 }}>
+
+            <div
+              style={{
+                fontSize: 58,
+                fontWeight: 900,
+                color: "#18c48f",
+                marginTop: 6,
+              }}
+            >
               {formatCountdown(msLeft)}
             </div>
 
@@ -201,6 +241,12 @@ export default function HomePage() {
               <br />
               Kennzeichen: <strong>{plateSaved}</strong>
             </div>
+
+            <div style={{ height: 12 }} />
+
+            <button onClick={addReminder10MinBefore} style={btnGhost}>
+              Erinnerung setzen (10 Min vorher)
+            </button>
           </div>
 
           <div style={{ height: 14 }} />
