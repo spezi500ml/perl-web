@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PlateInput from "@/components/PlateInput";
 import {
-  buildPlate,
   clearPlate,
   ensureSession,
   formatCountdown,
@@ -12,30 +11,100 @@ import {
   getEndMs,
   getPlate,
   getSite,
-  setPlate,
-  setSite,
+  setPlate as persistPlate,
+  setSite as persistSite,
 } from "@/lib/parking";
 
 export const dynamic = "force-dynamic";
 
+type Suffix = "" | "E" | "H";
+
+function buildPlateString(prefix: string, rest: string, suffix: Suffix) {
+  const p = prefix.trim().toUpperCase();
+  const r = rest.trim().toUpperCase();
+  const s = suffix ? ` ${suffix}` : "";
+  return `${p}-${r}${s}`;
+}
+
+function downloadOrOpenICS(icsText: string) {
+  // iOS/Safari ist zickig – aber data: funktioniert meist ok.
+  const blob = new Blob([icsText], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "perl-erinnerung.ics";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function makeICS({
+  title,
+  description,
+  startMs,
+  endMs,
+}: {
+  title: string;
+  description: string;
+  startMs: number;
+  endMs: number;
+}) {
+  // ICS braucht UTC im Format YYYYMMDDTHHMMSSZ
+  const toICSDate = (ms: number) => {
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      d.getUTCFullYear() +
+      pad(d.getUTCMonth() + 1) +
+      pad(d.getUTCDate()) +
+      "T" +
+      pad(d.getUTCHours()) +
+      pad(d.getUTCMinutes()) +
+      pad(d.getUTCSeconds()) +
+      "Z"
+    );
+  };
+
+  const uid = `${Date.now()}@perl-web`;
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//PERL//Parking Reminder//DE",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${toICSDate(Date.now())}`,
+    `DTSTART:${toICSDate(startMs)}`,
+    `DTEND:${toICSDate(endMs)}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description.replace(/\n/g, "\\n")}`,
+    "BEGIN:VALARM",
+    "TRIGGER:-PT10M",
+    "ACTION:DISPLAY",
+    "DESCRIPTION:PERL Erinnerung",
+    "END:VALARM",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
 export default function HomePage() {
   const router = useRouter();
 
-  const [site, setSiteState] = useState("Muster-REWE");
+  const [site, setSite] = useState("Muster-REWE");
 
-  // EU-Plate Input
+  // Kennzeichen State (neu)
   const [prefix, setPrefix] = useState("M");
   const [rest, setRest] = useState("123");
-
-  // Optional & exklusiv
-  const [isE, setIsE] = useState(false);
-  const [isH, setIsH] = useState(false);
+  const [suffix, setSuffix] = useState<Suffix>("");
 
   const [plateSaved, setPlateSaved] = useState("");
-  const [endMs, setEndMsState] = useState(0);
+  const [endMs, setEndMs] = useState(0);
   const [now, setNow] = useState(Date.now());
 
-  const base = useMemo<React.CSSProperties>(
+  const base = useMemo(
     () => ({
       minHeight: "100vh",
       padding: 22,
@@ -50,13 +119,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const s = getSite("Muster-REWE");
-    setSiteState(s);
+    setSite(s);
 
     ensureSession(s);
-    setEndMsState(getEndMs());
+    setEndMs(getEndMs());
 
-    const p = getPlate();
-    if (p) setPlateSaved(p);
+    const existing = getPlate();
+    if (existing) setPlateSaved(existing);
 
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -65,13 +134,16 @@ export default function HomePage() {
   const msLeft = Math.max(0, endMs - now);
 
   function onSavePlate() {
-    const plate = buildPlate(prefix, rest, isE, isH);
-    setPlate(plate);
+    if (!prefix.trim() || !rest.trim()) return;
+
+    const plate = buildPlateString(prefix, rest, suffix);
+
+    persistPlate(plate);
     setPlateSaved(plate);
 
-    setSite(site);
+    persistSite(site);
     ensureSession(site);
-    setEndMsState(getEndMs());
+    setEndMs(getEndMs());
   }
 
   function onChangePlate() {
@@ -80,27 +152,21 @@ export default function HomePage() {
   }
 
   function goExtend() {
-    router.push(`/extend`);
+    router.push("/extend");
   }
 
-  function addReminder10MinBefore() {
-    const remindAt = new Date(endMs - 10 * 60 * 1000);
-    const dt = remindAt
-      .toISOString()
-      .replace(/[-:]/g, "")
-      .split(".")[0] + "Z";
+  function onSetReminder() {
+    if (!endMs) return;
 
-    const ics = `BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-DTSTART:${dt}
-SUMMARY:Parkzeit läuft bald ab
-DESCRIPTION:Ihre Parkzeit bei ${site} endet bald.
-END:VEVENT
-END:VCALENDAR`;
+    // Event: 5 Minuten Dauer, Start = Ende Freiparkzeit (damit Alarm -10min vorher passt)
+    const startMs = endMs;
+    const eventEndMs = endMs + 5 * 60 * 1000;
 
-    const url = "data:text/calendar;charset=utf8," + encodeURIComponent(ics);
-    window.location.href = url;
+    const title = "PERL: Parkzeit läuft bald ab";
+    const description = `Standort: ${site}\nKennzeichen: ${plateSaved || buildPlateString(prefix, rest, suffix)}\nEnde Freiparkzeit: ${formatHHMM(endMs)}`;
+
+    const ics = makeICS({ title, description, startMs, endMs: eventEndMs });
+    downloadOrOpenICS(ics);
   }
 
   const cardStyle: React.CSSProperties = {
@@ -141,8 +207,8 @@ END:VCALENDAR`;
     height: 52,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(255,255,255,0.06)",
-    color: "#7ec7ff",
+    background: "rgba(255,255,255,0.04)",
+    color: "#cfe9ff",
     fontSize: 18,
     fontWeight: 800,
     cursor: "pointer",
@@ -151,23 +217,13 @@ END:VCALENDAR`;
   return (
     <main style={base}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
-        <div
-          style={{
-            fontSize: 56,
-            fontWeight: 900,
-            letterSpacing: 2,
-            color: "#18c48f",
-          }}
-        >
+        <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: 2, color: "#18c48f" }}>
           PERL
         </div>
-        <div style={{ fontSize: 40, fontWeight: 900, marginTop: 6 }}>
-          Parkplätze für Kunden
-        </div>
+        <div style={{ fontSize: 40, fontWeight: 900, marginTop: 6 }}>Parkplätze für Kunden</div>
 
         <p style={{ opacity: 0.85, marginTop: 10, fontSize: 18 }}>
-          Kennzeichen einmalig erfassen, um verbleibende Restparkzeit zu sehen und
-          ggf. zu verlängern.
+          Kennzeichen einmalig erfassen um verbleibende Restparkzeit zu sehen und ggF. zu verlängern.
         </p>
       </div>
 
@@ -179,15 +235,14 @@ END:VCALENDAR`;
             Kennzeichen einmalig erfassen
           </div>
 
+          {/* Helles Kennzeichen-Element (Wemolo-Look) */}
           <PlateInput
             prefix={prefix}
             setPrefix={setPrefix}
             rest={rest}
             setRest={setRest}
-            isE={isE}
-            setIsE={setIsE}
-            isH={isH}
-            setIsH={setIsH}
+            suffix={suffix}
+            setSuffix={setSuffix}
           />
 
           <div style={{ height: 14 }} />
@@ -207,28 +262,12 @@ END:VCALENDAR`;
       ) : (
         <div style={cardStyle}>
           <p style={{ opacity: 0.85, fontSize: 18 }}>
-            Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger
-            bleiben möchten, können Sie vor Ablauf verlängern.
+            Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger bleiben möchten, können Sie vor Ablauf verlängern.
           </p>
 
-          <div
-            style={{
-              marginTop: 12,
-              padding: 16,
-              borderRadius: 16,
-              background: "rgba(255,255,255,0.05)",
-            }}
-          >
+          <div style={{ marginTop: 12, padding: 16, borderRadius: 16, background: "rgba(255,255,255,0.05)" }}>
             <div style={{ opacity: 0.8, fontSize: 16 }}>Verbleibende Zeit</div>
-
-            <div
-              style={{
-                fontSize: 58,
-                fontWeight: 900,
-                color: "#18c48f",
-                marginTop: 6,
-              }}
-            >
+            <div style={{ fontSize: 58, fontWeight: 900, color: "#18c48f", marginTop: 6 }}>
               {formatCountdown(msLeft)}
             </div>
 
@@ -241,15 +280,19 @@ END:VCALENDAR`;
               <br />
               Kennzeichen: <strong>{plateSaved}</strong>
             </div>
-
-            <div style={{ height: 12 }} />
-
-            <button onClick={addReminder10MinBefore} style={btnGhost}>
-              Erinnerung setzen (10 Min vorher)
-            </button>
           </div>
 
-          <div style={{ height: 14 }} />
+          <div style={{ height: 12 }} />
+
+          <button onClick={onSetReminder} style={btnGhost}>
+            Erinnerung setzen (10 Min vorher)
+          </button>
+
+          <p style={{ marginTop: 8, opacity: 0.7 }}>
+            Öffnet eine Kalender-Erinnerung auf Ihrem Handy (iOS/Android).
+          </p>
+
+          <div style={{ height: 10 }} />
 
           <button onClick={goExtend} style={btnPrimary}>
             Parkzeit verlängern
