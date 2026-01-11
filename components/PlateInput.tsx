@@ -7,19 +7,22 @@ export type Suffix = "" | "E" | "H";
 type Props = {
   prefix: string;
   setPrefix: React.Dispatch<React.SetStateAction<string>>;
+
   rest: string;
   setRest: React.Dispatch<React.SetStateAction<string>>;
+
+  // wichtig: so wie du es aktuell im app/page.tsx übergibst
   suffix: Suffix;
   setSuffix: React.Dispatch<React.SetStateAction<Suffix>>;
 };
 
-function normalizePrefix(v: string) {
-  return v.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
+function normPrefix(v: string) {
+  return v.toUpperCase().replace(/[^A-ZÄÖÜ]/g, "").slice(0, 3);
 }
 
-function normalizeRest(v: string) {
-  // erlaubt: Buchstaben+Zahlen (ohne Sonderzeichen), max 6 Zeichen wie typische Kennzeichen-Restteile
-  return v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6);
+function normRest(v: string) {
+  // zweites Feld: Buchstaben + Zahlen erlauben (z.B. UC19, AB123, 1A23)
+  return v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 }
 
 export default function PlateInput({
@@ -30,172 +33,150 @@ export default function PlateInput({
   suffix,
   setSuffix,
 }: Props) {
-  const wrap: React.CSSProperties = {
+  const plateWrap: React.CSSProperties = {
+    width: "fit-content", // <- macht das gesamte Kennzeichen so kurz wie möglich
+    margin: "0 auto", // <- zentriert es im Card
+    background: "#fff",
+    borderRadius: 12,
+    padding: 10, // kleiner -> weniger Weißraum rechts
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: 12,
-    borderRadius: 14,
-    background: "#fff",
-    boxShadow: "0 10px 26px rgba(0,0,0,0.20)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
   };
 
-  // EU-Balken links
-  const eu: React.CSSProperties = {
-    width: 44,
-    height: 54,
-    borderRadius: 10,
-    background: "#2b37ff",
-    color: "#fff",
+  const blue: React.CSSProperties = {
+    width: 30, // schmaler, nur minimal breiter als das "D"
+    height: 46,
+    borderRadius: 8,
+    background: "#2f3cff",
     display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
     fontWeight: 900,
+    fontSize: 16,
     letterSpacing: 0.5,
     userSelect: "none",
+    flex: "0 0 auto",
   };
 
-  const stars: React.CSSProperties = {
-    fontSize: 10,
-    lineHeight: 1,
-    opacity: 0.95,
-    marginBottom: 4,
-  };
-
-  const d: React.CSSProperties = {
-    fontSize: 14,
-    lineHeight: 1,
-  };
-
-  // Input-Styles (Wemolo-ish)
-  const inBase: React.CSSProperties = {
-    height: 54,
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.18)",
+  const inputBase: React.CSSProperties = {
+    height: 44,
+    borderRadius: 8,
+    border: "1px solid #d9d9d9",
     background: "#fff",
     color: "#111",
     fontSize: 18,
     fontWeight: 800,
+    padding: "0 12px",
     outline: "none",
-    padding: "0 14px",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)",
     textTransform: "uppercase",
   };
 
-  // Feld 1 bewusst kürzer (3 Buchstaben max)
   const prefixStyle: React.CSSProperties = {
-    ...inBase,
-    width: 92, // kürzer als vorher
+    ...inputBase,
+    width: 92, // etwas kürzer
     textAlign: "left",
   };
 
-  // Rechtes Feld kürzer (Container + Input)
   const restStyle: React.CSSProperties = {
-    ...inBase,
-    width: 210, // deutlich kürzer
+    ...inputBase,
+    width: 170, // deutlich kürzer -> weniger Weißraum rechts
+    textAlign: "left",
   };
 
-  // 2 Punkte statt Trennstrich
   const dotsWrap: React.CSSProperties = {
-    width: 16,
-    height: 54,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  };
-
-  const dots: React.CSSProperties = {
-    width: 8,
-    height: 22,
+    width: 18,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8, // mehr Abstand
+    flex: "0 0 auto",
   };
 
   const dot: React.CSSProperties = {
-    width: 8,
+    width: 8, // doppelt so groß wie vorher (optisch)
     height: 8,
     borderRadius: 999,
-    background: "rgba(0,0,0,0.18)",
+    background: "#cfcfcf",
   };
 
-  const suffixRow: React.CSSProperties = {
-    marginTop: 10,
+  const checkRow: React.CSSProperties = {
     display: "flex",
     gap: 18,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-  };
-
-  const cbLabel: React.CSSProperties = {
-    display: "flex",
-    gap: 8,
-    alignItems: "center",
+    marginTop: 10,
     color: "#fff",
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 800,
+  };
+
+  const checkLabel: React.CSSProperties = {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
     opacity: 0.95,
   };
 
-  const cb: React.CSSProperties = {
-    width: 16,
-    height: 16,
-  };
+  function toggleSuffix(next: Suffix) {
+    // exklusiv, aber optional: klickt man dasselbe nochmal, wird's wieder leer
+    setSuffix((cur) => (cur === next ? "" : next));
+  }
 
   return (
     <div>
-      <div style={wrap}>
-        <div style={eu}>
-          <div style={stars}>•••••••</div>
-          <div style={d}>D</div>
-        </div>
+      {/* Kennzeichen: kürzer + zentriert */}
+      <div style={plateWrap}>
+        {/* Blaues Feld: nur "D", keine Sterne */}
+        <div style={blue}>D</div>
 
         <input
           value={prefix}
-          onChange={(e) => setPrefix(normalizePrefix(e.target.value))}
+          onChange={(e) => setPrefix(normPrefix(e.target.value))}
           placeholder="MUC"
           maxLength={3}
-          inputMode="text"
           autoCapitalize="characters"
+          inputMode="text"
           style={prefixStyle}
         />
 
-        <div style={dotsWrap} aria-hidden="true">
-          <div style={dots}>
-            <div style={dot} />
-            <div style={dot} />
-          </div>
+        {/* Doppelpunkte (2 Punkte), jetzt deutlich größer */}
+        <div style={dotsWrap} aria-hidden>
+          <span style={dot} />
+          <span style={dot} />
         </div>
 
         <input
           value={rest}
-          onChange={(e) => setRest(normalizeRest(e.target.value))}
+          onChange={(e) => setRest(normRest(e.target.value))}
           placeholder="PD1234"
           maxLength={6}
-          inputMode="text"
           autoCapitalize="characters"
+          inputMode="text"
           style={restStyle}
         />
       </div>
 
-      {/* E/H exklusiv, optional */}
-      <div style={suffixRow}>
-        <label style={cbLabel}>
+      {/* E/H: exklusiv, aber optional */}
+      <div style={checkRow}>
+        <label style={checkLabel}>
           <input
-            style={cb}
             type="checkbox"
             checked={suffix === "E"}
-            onChange={(e) => setSuffix(e.target.checked ? "E" : "")}
+            onChange={() => toggleSuffix("E")}
           />
           E-Kennzeichen
         </label>
 
-        <label style={cbLabel}>
+        <label style={checkLabel}>
           <input
-            style={cb}
             type="checkbox"
             checked={suffix === "H"}
-            onChange={(e) => setSuffix(e.target.checked ? "H" : "")}
+            onChange={() => toggleSuffix("H")}
           />
           H-Kennzeichen
         </label>
