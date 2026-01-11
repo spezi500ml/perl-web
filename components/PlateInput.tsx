@@ -6,21 +6,20 @@ export type Suffix = "" | "E" | "H";
 
 type Props = {
   prefix: string;
-  setPrefix: (v: string) => void;
-
+  setPrefix: React.Dispatch<React.SetStateAction<string>>;
   rest: string;
-  setRest: (v: string) => void;
-
+  setRest: React.Dispatch<React.SetStateAction<string>>;
   suffix: Suffix;
-  setSuffix: (v: Suffix) => void;
+  setSuffix: React.Dispatch<React.SetStateAction<Suffix>>;
 };
 
-function onlyLettersUpper(v: string) {
-  return v.replace(/[^a-zA-Z]/g, "").toUpperCase();
+function normalizePrefix(v: string) {
+  return v.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
 }
 
-function lettersAndNumbersUpper(v: string) {
-  return v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+function normalizeRest(v: string) {
+  // erlaubt: Buchstaben+Zahlen (ohne Sonderzeichen), max 6 Zeichen wie typische Kennzeichen-Restteile
+  return v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6);
 }
 
 export default function PlateInput({
@@ -31,139 +30,159 @@ export default function PlateInput({
   suffix,
   setSuffix,
 }: Props) {
-  const plateWrap: React.CSSProperties = {
-    width: "100%",
-    display: "flex",
-    justifyContent: "center",
-  };
-
-  // weißes “Wemolo”-Kennzeichen
-  const plate: React.CSSProperties = {
+  const wrap: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
-    background: "#f3f4f6",
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,0.10)",
-    padding: 10,
     gap: 10,
-    width: "100%",
-    maxWidth: 520,
+    padding: 12,
+    borderRadius: 14,
+    background: "#fff",
+    boxShadow: "0 10px 26px rgba(0,0,0,0.20)",
   };
 
   // EU-Balken links
-  const euBar: React.CSSProperties = {
+  const eu: React.CSSProperties = {
     width: 44,
     height: 54,
     borderRadius: 10,
-    background: "#2f39ff",
+    background: "#2b37ff",
+    color: "#fff",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
-    padding: "8px 0 6px",
+    justifyContent: "center",
     alignItems: "center",
-    color: "#fff",
-    flexShrink: 0,
+    fontWeight: 900,
+    letterSpacing: 0.5,
+    userSelect: "none",
   };
 
   const stars: React.CSSProperties = {
     fontSize: 10,
     lineHeight: 1,
-    opacity: 0.9,
-    letterSpacing: 1,
+    opacity: 0.95,
+    marginBottom: 4,
   };
 
-  const country: React.CSSProperties = {
-    fontSize: 16,
-    fontWeight: 900,
-    letterSpacing: 0.5,
+  const d: React.CSSProperties = {
+    fontSize: 14,
+    lineHeight: 1,
   };
 
-  const inputsRow: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  };
-
-  const inputBase: React.CSSProperties = {
+  // Input-Styles (Wemolo-ish)
+  const inBase: React.CSSProperties = {
     height: 54,
     borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.20)",
-    background: "#ffffff",
-    color: "#0b0b0b",
-    fontSize: 22,
-    fontWeight: 900,
-    padding: "0 14px",
+    border: "1px solid rgba(0,0,0,0.18)",
+    background: "#fff",
+    color: "#111",
+    fontSize: 18,
+    fontWeight: 800,
     outline: "none",
+    padding: "0 14px",
     textTransform: "uppercase",
   };
 
-  const dash: React.CSSProperties = {
-    fontSize: 22,
-    fontWeight: 900,
-    color: "#1f2937",
-    opacity: 0.6,
-    padding: "0 2px",
+  // Feld 1 bewusst kürzer (3 Buchstaben max)
+  const prefixStyle: React.CSSProperties = {
+    ...inBase,
+    width: 92, // kürzer als vorher
+    textAlign: "left",
   };
 
-  const suffixRow: React.CSSProperties = {
+  // Rechtes Feld kürzer (Container + Input)
+  const restStyle: React.CSSProperties = {
+    ...inBase,
+    width: 210, // deutlich kürzer
+  };
+
+  // 2 Punkte statt Trennstrich
+  const dotsWrap: React.CSSProperties = {
+    width: 16,
+    height: 54,
     display: "flex",
-    gap: 16,
     alignItems: "center",
-    marginTop: 10,
     justifyContent: "center",
   };
 
-  const suffixLabel: React.CSSProperties = {
+  const dots: React.CSSProperties = {
+    width: 8,
+    height: 22,
     display: "flex",
-    gap: 10,
+    flexDirection: "column",
+    justifyContent: "space-between",
+  };
+
+  const dot: React.CSSProperties = {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "rgba(0,0,0,0.18)",
+  };
+
+  const suffixRow: React.CSSProperties = {
+    marginTop: 10,
+    display: "flex",
+    gap: 18,
+    justifyContent: "center",
     alignItems: "center",
-    fontSize: 18,
-    fontWeight: 800,
+  };
+
+  const cbLabel: React.CSSProperties = {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: 700,
     opacity: 0.95,
+  };
+
+  const cb: React.CSSProperties = {
+    width: 16,
+    height: 16,
   };
 
   return (
     <div>
-      <div style={plateWrap}>
-        <div style={plate}>
-          <div style={euBar} aria-hidden>
-            <div style={stars}>••••••</div>
-            <div style={country}>D</div>
-          </div>
+      <div style={wrap}>
+        <div style={eu}>
+          <div style={stars}>•••••••</div>
+          <div style={d}>D</div>
+        </div>
 
-          <div style={inputsRow}>
-            {/* Prefix max 3 Buchstaben */}
-            <input
-              value={prefix}
-              onChange={(e) => setPrefix(onlyLettersUpper(e.target.value).slice(0, 3))}
-              placeholder="MUC"
-              maxLength={3}
-              inputMode="text"
-              autoCapitalize="characters"
-              style={{ ...inputBase, width: 110 }}
-            />
+        <input
+          value={prefix}
+          onChange={(e) => setPrefix(normalizePrefix(e.target.value))}
+          placeholder="MUC"
+          maxLength={3}
+          inputMode="text"
+          autoCapitalize="characters"
+          style={prefixStyle}
+        />
 
-            <span style={dash}>-</span>
-
-            {/* Rest: Buchstaben+Zahlen, z.B. UC19 / PD1234 */}
-            <input
-              value={rest}
-              onChange={(e) => setRest(lettersAndNumbersUpper(e.target.value).slice(0, 6))}
-              placeholder="PD1234"
-              maxLength={6}
-              inputMode="text"
-              autoCapitalize="characters"
-              style={{ ...inputBase, flex: 1 }}
-            />
+        <div style={dotsWrap} aria-hidden="true">
+          <div style={dots}>
+            <div style={dot} />
+            <div style={dot} />
           </div>
         </div>
+
+        <input
+          value={rest}
+          onChange={(e) => setRest(normalizeRest(e.target.value))}
+          placeholder="PD1234"
+          maxLength={6}
+          inputMode="text"
+          autoCapitalize="characters"
+          style={restStyle}
+        />
       </div>
 
-      {/* E/H optional aber exklusiv */}
+      {/* E/H exklusiv, optional */}
       <div style={suffixRow}>
-        <label style={suffixLabel}>
+        <label style={cbLabel}>
           <input
+            style={cb}
             type="checkbox"
             checked={suffix === "E"}
             onChange={(e) => setSuffix(e.target.checked ? "E" : "")}
@@ -171,8 +190,9 @@ export default function PlateInput({
           E-Kennzeichen
         </label>
 
-        <label style={suffixLabel}>
+        <label style={cbLabel}>
           <input
+            style={cb}
             type="checkbox"
             checked={suffix === "H"}
             onChange={(e) => setSuffix(e.target.checked ? "H" : "")}
