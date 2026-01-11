@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import PlateInput from "@/components/PlateInput";
+import PlateInput, { Suffix } from "@/components/PlateInput";
 import {
   clearPlate,
   ensureSession,
@@ -17,8 +17,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Suffix = "" | "E" | "H";
-
 function buildPlateString(prefix: string, rest: string, suffix: Suffix) {
   const p = prefix.trim().toUpperCase();
   const r = rest.trim().toUpperCase();
@@ -27,7 +25,6 @@ function buildPlateString(prefix: string, rest: string, suffix: Suffix) {
 }
 
 function downloadOrOpenICS(icsText: string) {
-  // iOS/Safari ist zickig – aber data: funktioniert meist ok.
   const blob = new Blob([icsText], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -50,7 +47,6 @@ function makeICS({
   startMs: number;
   endMs: number;
 }) {
-  // ICS braucht UTC im Format YYYYMMDDTHHMMSSZ
   const toICSDate = (ms: number) => {
     const d = new Date(ms);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -95,9 +91,8 @@ export default function HomePage() {
 
   const [site, setSite] = useState("Muster-REWE");
 
-  // Kennzeichen State (neu)
   const [prefix, setPrefix] = useState("M");
-  const [rest, setRest] = useState("123");
+  const [rest, setRest] = useState("UC19");
   const [suffix, setSuffix] = useState<Suffix>("");
 
   const [plateSaved, setPlateSaved] = useState("");
@@ -137,7 +132,6 @@ export default function HomePage() {
     if (!prefix.trim() || !rest.trim()) return;
 
     const plate = buildPlateString(prefix, rest, suffix);
-
     persistPlate(plate);
     setPlateSaved(plate);
 
@@ -158,12 +152,11 @@ export default function HomePage() {
   function onSetReminder() {
     if (!endMs) return;
 
-    // Event: 5 Minuten Dauer, Start = Ende Freiparkzeit (damit Alarm -10min vorher passt)
     const startMs = endMs;
     const eventEndMs = endMs + 5 * 60 * 1000;
 
     const title = "PERL: Parkzeit läuft bald ab";
-    const description = `Standort: ${site}\nKennzeichen: ${plateSaved || buildPlateString(prefix, rest, suffix)}\nEnde Freiparkzeit: ${formatHHMM(endMs)}`;
+    const description = `Standort: ${site}\nKennzeichen: ${plateSaved}\nEnde Freiparkzeit: ${formatHHMM(endMs)}`;
 
     const ics = makeICS({ title, description, startMs, endMs: eventEndMs });
     downloadOrOpenICS(ics);
@@ -232,10 +225,9 @@ export default function HomePage() {
       {!plateSaved ? (
         <div style={cardStyle}>
           <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>
-            Kennzeichen einmalig erfassen
+            Kennzeichen eingeben und bezahlen
           </div>
 
-          {/* Helles Kennzeichen-Element (Wemolo-Look) */}
           <PlateInput
             prefix={prefix}
             setPrefix={setPrefix}
@@ -265,7 +257,14 @@ export default function HomePage() {
             Sie sehen hier, wie viel Parkzeit noch verbleibt. Wenn Sie länger bleiben möchten, können Sie vor Ablauf verlängern.
           </p>
 
-          <div style={{ marginTop: 12, padding: 16, borderRadius: 16, background: "rgba(255,255,255,0.05)" }}>
+          <div
+            style={{
+              marginTop: 12,
+              padding: 16,
+              borderRadius: 16,
+              background: "rgba(255,255,255,0.05)",
+            }}
+          >
             <div style={{ opacity: 0.8, fontSize: 16 }}>Verbleibende Zeit</div>
             <div style={{ fontSize: 58, fontWeight: 900, color: "#18c48f", marginTop: 6 }}>
               {formatCountdown(msLeft)}
