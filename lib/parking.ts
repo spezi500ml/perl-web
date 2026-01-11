@@ -1,97 +1,126 @@
-const KEY_ENTRY_TS = "perl_entry_ts"; // Einfahrzeit (Unix ms)
-const KEY_END_TS = "perl_end_ts"; // Ende Freiparkzeit (Unix ms)
+// lib/parking.ts
+export const LS_SITE = "perl_site";
+export const LS_PLATE = "perl_plate";
+export const LS_START_AT = "perl_start_at_ms";
+export const LS_END_AT = "perl_end_at_ms";
+export const LS_PENDING_MINS = "perl_pending_mins";
 
-export const DEFAULT_FREE_MINUTES = 90;
+export const FREE_MINUTES_DEFAULT = 90;
+
+export function safeGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function safeSet(key: string, val: string) {
+  try {
+    localStorage.setItem(key, val);
+  } catch {}
+}
+
+export function safeDel(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {}
+}
 
 export function nowMs() {
   return Date.now();
 }
 
-export function getEntryTs(): number | null {
-  if (typeof window === "undefined") return null;
-  const v = localStorage.getItem(KEY_ENTRY_TS);
-  if (!v) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+export function ensureSession(site: string, freeMinutes = FREE_MINUTES_DEFAULT) {
+  // Wenn es schon eine Session gibt: nix kaputtmachen
+  const startRaw = safeGet(LS_START_AT);
+  const endRaw = safeGet(LS_END_AT);
+
+  if (startRaw && endRaw) return;
+
+  const start = nowMs();
+  const end = start + freeMinutes * 60 * 1000;
+
+  safeSet(LS_SITE, site);
+  safeSet(LS_START_AT, String(start));
+  safeSet(LS_END_AT, String(end));
 }
 
-export function getEndTs(): number | null {
-  if (typeof window === "undefined") return null;
-  const v = localStorage.getItem(KEY_END_TS);
-  if (!v) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+export function getSite(fallback = "Muster-REWE") {
+  return safeGet(LS_SITE) || fallback;
 }
 
-export function setEntryTs(entryTs: number) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_ENTRY_TS, String(entryTs));
+export function setSite(site: string) {
+  safeSet(LS_SITE, site);
 }
 
-export function setEndTs(endTs: number) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_END_TS, String(endTs));
+export function setPlate(plate: string) {
+  safeSet(LS_PLATE, plate);
 }
 
-export function clearParkingTimes() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(KEY_ENTRY_TS);
-  localStorage.removeItem(KEY_END_TS);
+export function getPlate() {
+  return safeGet(LS_PLATE) || "";
 }
 
-/**
- * MVP-Logik:
- * - Wenn Einfahrzeit oder Endzeit fehlt -> setzen wir beides.
- * - Ende = Einfahrt + freeMinutes (Default 90).
- */
-export function ensureParkingInitialized(freeMinutes: number = DEFAULT_FREE_MINUTES) {
-  if (typeof window === "undefined") return;
-
-  const entry = getEntryTs();
-  const end = getEndTs();
-
-  if (entry && end) return;
-
-  const entryTs = entry ?? nowMs();
-  const endTs = entryTs + freeMinutes * 60 * 1000;
-
-  setEntryTs(entryTs);
-  setEndTs(endTs);
+export function clearPlate() {
+  safeDel(LS_PLATE);
 }
 
-export function getRemainingMs(): number | null {
-  const end = getEndTs();
-  if (!end) return null;
-  return end - nowMs();
+export function getEndMs(): number {
+  const v = Number(safeGet(LS_END_AT) || "0");
+  return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-/**
- * Verlängerung: hängt Minuten an die aktuelle Endzeit an.
- * Wenn Endzeit in der Vergangenheit liegt, hängen wir ab "jetzt" an.
- */
-export function addMinutesToEnd(minutes: number) {
-  const currentEnd = getEndTs();
-  const base = currentEnd && currentEnd > nowMs() ? currentEnd : nowMs();
-  const next = base + minutes * 60 * 1000;
-  setEndTs(next);
-  return next;
+export function setEndMs(ms: number) {
+  safeSet(LS_END_AT, String(ms));
 }
 
-export function formatRemaining(ms: number) {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-
-  const mm = String(m).padStart(2, "0");
-  const ss = String(s).padStart(2, "0");
-
-  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+export function setPendingMins(mins: number) {
+  safeSet(LS_PENDING_MINS, String(mins));
 }
 
-export function formatClock(ts: number) {
-  const d = new Date(ts);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+export function consumePendingMins(): number {
+  const v = Number(safeGet(LS_PENDING_MINS) || "0");
+  safeDel(LS_PENDING_MINS);
+  return Number.isFinite(v) ? v : 0;
+}
+
+export function addMinutesToEnd(mins: number) {
+  const end = getEndMs();
+  const base = end > 0 ? end : nowMs();
+  const updated = base + Math.max(0, mins) * 60 * 1000;
+  setEndMs(updated);
+  return updated;
+}
+
+export function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+export function formatHHMM(ms: number) {
+  const d = new Date(ms);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+export function formatCountdown(msLeft: number) {
+  const s = Math.max(0, Math.floor(msLeft / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h}:${pad2(m)}:${pad2(sec)}`;
+}
+
+export function normalizePrefix(v: string) {
+  return v.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
+}
+
+export function normalizeNumber(v: string) {
+  return v.replace(/[^0-9]/g, "").slice(0, 4);
+}
+
+export function buildPlate(prefix: string, number: string, isE: boolean, isH: boolean) {
+  const p = normalizePrefix(prefix);
+  const n = normalizeNumber(number);
+  const suffix = isE ? " E" : isH ? " H" : "";
+  return `${p}-${n}${suffix}`.trim();
 }

@@ -1,114 +1,136 @@
 "use client";
-export const dynamic = "force-dynamic";
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ensureParkingInitialized,
   addMinutesToEnd,
-  formatClock,
-  getEndTs,
+  consumePendingMins,
+  formatHHMM,
+  getPlate,
+  getSite,
+  setSite,
 } from "@/lib/parking";
 
-const GREEN = "#00B67A";
+export const dynamic = "force-dynamic";
 
 export default function SuccessPage() {
   const router = useRouter();
 
-  const [plate, setPlate] = useState<string | null>(null);
-  const [isE, setIsE] = useState(false);
-  const [isH, setIsH] = useState(false);
-  const [endClock, setEndClock] = useState("—");
+  const [site, setSiteState] = useState("Muster-REWE");
+  const [plate, setPlateState] = useState("");
+  const [mins, setMins] = useState(0);
+  const [newEndMs, setNewEndMs] = useState<number>(0);
 
   useEffect(() => {
-    // Kennzeichen laden
-    setPlate(localStorage.getItem("perl_plate"));
-    setIsE(localStorage.getItem("perl_plate_e") === "1");
-    setIsH(localStorage.getItem("perl_plate_h") === "1");
+    const s = getSite("Muster-REWE");
+    setSite(s);
+    setSiteState(s);
 
-    // Grundzustand sicherstellen (90 Min Freiparkzeit)
-    ensureParkingInitialized(90);
+    const p = getPlate();
+    setPlateState(p);
 
-    // Verlängerung anwenden (kommt aus Extend-Seite)
-    const pending = localStorage.getItem("perl_pending_minutes");
-    if (pending) {
-      const minutes =
-        pending === "30" ? 30 : pending === "60" ? 60 : 180;
-      addMinutesToEnd(minutes);
-      localStorage.removeItem("perl_pending_minutes");
-    }
+    const pending = consumePendingMins(); // <-- DAS ist der Schlüssel
+    setMins(pending);
 
-    const end = getEndTs();
-    if (end) setEndClock(formatClock(end));
+    const updated = addMinutesToEnd(pending);
+    setNewEndMs(updated);
   }, []);
 
-  const plateLabel = useMemo(() => {
-    if (!plate) return "—";
-    return plate + (isE ? " E" : isH ? " H" : "");
-  }, [plate, isE, isH]);
+  const base: React.CSSProperties = useMemo(
+    () => ({
+      minHeight: "100vh",
+      padding: 28,
+      background: "#0b0b0b",
+      color: "#fff",
+      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontSize: 18,
+      lineHeight: 1.35,
+    }),
+    []
+  );
+
+  const btnPrimary: React.CSSProperties = {
+    width: "100%",
+    height: 58,
+    borderRadius: 14,
+    border: "none",
+    background: "#18c48f",
+    color: "#00150f",
+    fontSize: 20,
+    fontWeight: 900,
+    cursor: "pointer",
+    marginBottom: 12,
+  };
+
+  const btnSecondary: React.CSSProperties = {
+    width: "100%",
+    height: 58,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#7ec7ff",
+    fontSize: 20,
+    fontWeight: 900,
+    cursor: "pointer",
+  };
 
   return (
-    <main style={{ padding: 40, maxWidth: 720 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div
-          style={{
-            fontSize: 42,
-            fontWeight: 900,
-            letterSpacing: 1,
-            color: GREEN,
-            lineHeight: 1.1,
-          }}
-        >
+    <main style={base}>
+      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: 2, color: "#18c48f" }}>
           PERL
         </div>
+
+        <h1 style={{ fontSize: 34, marginTop: 8, marginBottom: 12 }}>
+          Zahlung erfolgreich ✅
+        </h1>
+
+        <p style={{ opacity: 0.9, marginBottom: 18 }}>
+          Danke! Ihre Verlängerung wurde gebucht.
+        </p>
+
         <div
           style={{
-            fontSize: 32,
-            fontWeight: 900,
-            opacity: 0.95,
-            marginTop: 4,
+            padding: 18,
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            marginBottom: 18,
           }}
         >
-          Parkplätze für Kunden
+          <div style={{ opacity: 0.8 }}>Standort</div>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>{site}</div>
+
+          {plate ? (
+            <>
+              <div style={{ opacity: 0.8 }}>Kennzeichen</div>
+              <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>{plate}</div>
+            </>
+          ) : null}
+
+          <div style={{ opacity: 0.8 }}>Verlängerung</div>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 10 }}>
+            +{mins} Minuten
+          </div>
+
+          <div style={{ opacity: 0.8 }}>Neues Ende</div>
+          <div style={{ fontSize: 28, fontWeight: 900 }}>
+            {newEndMs ? formatHHMM(newEndMs) : "—"}
+          </div>
         </div>
-      </div>
 
-      <h2>Zahlung erfolgreich ✅</h2>
-
-      <p style={{ opacity: 0.9 }}>
-        Danke! Ihre Verlängerung wurde gebucht.
-        <br />
-        Kennzeichen: <b>{plateLabel}</b>
-        <br />
-        Neues Ende: <b>{endClock}</b>
-      </p>
-
-      <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
-        <button
-          onClick={() => router.push("/extend?site=Muster-REWE")}
-          style={btn(GREEN)}
-        >
+        <button onClick={() => router.push("/extend")} style={btnPrimary}>
           Zurück zur Verlängerung
         </button>
 
-        <button onClick={() => router.push("/")} style={btn()}>
+        <button onClick={() => router.push("/")} style={btnSecondary}>
           Zur Startseite
         </button>
-      </div>
 
-      <div style={{ marginTop: 18, fontSize: 12, opacity: 0.75 }}>
-        Hinweis: Sie zahlen nur, wenn Sie aktiv eine Verlängerung auswählen.
+        <p style={{ marginTop: 14, opacity: 0.7 }}>
+          Hinweis: Sie zahlen nur, wenn Sie aktiv eine Verlängerung auswählen.
+        </p>
       </div>
     </main>
   );
 }
-
-const btn = (bg?: string): React.CSSProperties => ({
-  padding: 14,
-  width: "100%",
-  fontSize: 16,
-  fontWeight: 900,
-  borderRadius: 12,
-  background: bg ?? "rgba(255,255,255,0.15)",
-  border: "none",
-  cursor: "pointer",
-});

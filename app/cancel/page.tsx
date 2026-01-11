@@ -1,51 +1,73 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { getSite } from "@/lib/parking";
+
 export const dynamic = "force-dynamic";
 
-type Props = {
-  searchParams?: {
-    site?: string;
-  };
-};
-
-export default function CancelPage({ searchParams }: Props) {
-  const site = searchParams?.site ?? "Muster-REWE";
+export default function CancelPage() {
+  const router = useRouter();
+  const site = getSite("Muster-REWE");
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        padding: 32,
+        padding: 28,
         background: "#0b0b0b",
         color: "#fff",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 18,
+        lineHeight: 1.35,
       }}
     >
-      <h1 style={{ fontSize: 34, marginBottom: 12 }}>
-        Zahlung abgebrochen
-      </h1>
+      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 34, fontWeight: 900 }}>Zahlung abgebrochen</h1>
+        <p style={{ opacity: 0.85 }}>
+          Kein Problem – es wurde nichts berechnet. Sie können jederzeit erneut verlängern.
+        </p>
 
-      <p style={{ opacity: 0.85, marginBottom: 24 }}>
-        Keine Sorge – es wurde <strong>nichts berechnet</strong>.
-      </p>
+        <div style={{ height: 14 }} />
 
-      <p style={{ opacity: 0.85 }}>
-        Standort: <strong>{site}</strong>
-      </p>
-
-      <div style={{ marginTop: 24 }}>
-        <a
-          href={`/?site=${encodeURIComponent(site)}`}
+        <button
+          onClick={() => router.push(`/extend`)}
           style={{
-            padding: 14,
-            borderRadius: 12,
-            background: "#2d2dff",
-            color: "#fff",
-            fontWeight: 700,
-            textDecoration: "none",
-            display: "inline-block",
+            width: "100%",
+            height: 58,
+            borderRadius: 14,
+            border: "none",
+            background: "#18c48f",
+            color: "#00150f",
+            fontSize: 20,
+            fontWeight: 900,
+            cursor: "pointer",
           }}
         >
           Zurück zur Verlängerung
-        </a>
+        </button>
+
+        <div style={{ height: 12 }} />
+
+        <button
+          onClick={() => router.push(`/`)}
+          style={{
+            width: "100%",
+            height: 58,
+            borderRadius: 14,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(255,255,255,0.06)",
+            color: "#7ec7ff",
+            fontSize: 20,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Zur Startseite
+        </button>
+
+        <p style={{ marginTop: 12, opacity: 0.7 }}>
+          Standort: <strong>{site}</strong>
+        </p>
       </div>
     </main>
   );
